@@ -15,8 +15,8 @@ SYMBOLS = ["BTC/EUR", "ETH/EUR", "SOL/EUR"]
 # Initialisierung der Kraken-Börse über CCXT mit deinen echten Schlüsseln
 exchange = ccxt.kraken({
     'enableRateLimit': True,
-    'apiKey': 'VH9uaqm+ablfl+o3W1+dGu9Omi/EK06w51D2+y+oQymYc1juIWo/20Ap',
-    'secret': 'usgoswNhC/PkKsOBiUf+OETF7R1G7RBvr19VloKPNJlxd0aIBPFe/69FcrH0G1asQDoh5Y925xql1LnVCVRkdg=='
+    'apiKey': 'WO451YasnHiAMSX+FfmIx3oQxEcvg2Ze3pAvYNfoQBQQNjdP+hu6bkfM',
+    'secret': 'udtXeBUhfDU7ED3pU1bVAd2b4sXggO5up1qzH7c0YdHhxvDSlJuM4t1fDzwawd+dxRDVk4Okz2kukiWtuMdzzw=='
 })
 
 def log_message(nachricht):
