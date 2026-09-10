@@ -1,5 +1,6 @@
 import ccxt
 import time
+import sys
 from datetime import datetime
 
 # ==========================================
@@ -19,9 +20,9 @@ exchange = ccxt.kraken({
 })
 
 def log_message(nachricht):
-    """Gibt eine Nachricht mit Zeitstempel im Terminal aus."""
+    """Gibt eine Nachricht mit Zeitstempel im Terminal aus und erzwingt die sofortige Anzeige."""
     zeitstempel = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{zeitstempel}] {nachricht}")
+    print(f"[{zeitstempel}] {nachricht}", flush=True)
 
 def startup_abgleich():
     """Führt beim Start den Abgleich mit dem Wallet/Status durch."""
