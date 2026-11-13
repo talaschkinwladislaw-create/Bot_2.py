@@ -1,8 +1,8 @@
+import ccxt
 import time
 import os
 import threading
 from datetime import datetime
-import requests
 from flask import Flask
 
 # ==========================================
@@ -12,58 +12,77 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "KuCoin Trading Bot is running 24/7!"
+    return "KuCoin Live Trading Bot is running 24/7!"
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
 
 # ==========================================
-# KONFIGURATION DES TRADING-BOTS
+# ECHTGELD-KONFIGURATION (LIVE MODUS)
 # ==========================================
-CHECK_INTERVAL = 60  # Zeitabstand in Sekunden
-SYMBOLS = ["BTC-USDT", "ETH-USDT", "SOL-USDT"]  # KuCoin Public API nutzt Bindestrich
+CHECK_INTERVAL = 300  # Alle 5 Minuten prüfen (beim Live-Handel defensiver wählen)
+SYMBOLS = ["BTC/USDT", "ETH/USDT"]
 
-def get_kucoin_price(symbol):
-    try:
-        url = f"https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={symbol}"
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        
-        if data.get("code") == "200000" and data.get("data"):
-            price = float(data["data"]["price"])
-            return price
-    except Exception as e:
-        print(f"Fehler beim Abrufen von {symbol}: {e}")
-    return None
+# API-Schlüssel sicher aus den Render Environment Variables laden
+exchange = ccxt.kucoin({
+    'enableRateLimit': True,
+    'apiKey': os.environ.get('KUCOIN_API_KEY'),
+    'secret': os.environ.get('KUCOIN_SECRET'),
+    'password': os.environ.get('KUCOIN_PASSWORD')
+})
+
+# EXPLICIT DEN LIVE-MODUS AKTIVIEREN (Keine Sandbox!)
+exchange.set_sandbox_mode(False)
+print("--- 🚨 ACHTUNG: KUCOIN BOT IM ECHTGELD (LIVE) MODUS AKTIVIERT 🚨 ---")
 
 def bot_loop():
     while True:
         try:
-            print(f"\n--- Bot-Scan gestartet um {datetime.now()} ---")
+            print(f"\n--- Live-Handels-Scan gestartet um {datetime.now()} ---")
             
+            # 1. Kontostand abrufen (prüft, ob die API-Verbindung steht)
+            try:
+                balance = exchange.fetch_balance()
+                usdt_free = balance['free'].get('USDT', 0)
+                print(f"Verfügbares USDT-Guthaben: {usdt_free} USDT")
+            except Exception as e:
+                print(f"Fehler beim Abrufen des Kontostands (Schlüssel prüfen!): {e}")
+                time.sleep(30)
+                continue
+
+            # 2. Märkte und Preise prüfen & Handelslogik anwenden
             for symbol in SYMBOLS:
-                price = get_kucoin_price(symbol)
-                if price:
-                    print(f"{symbol} Aktueller Preis: {price} USDT")
-                else:
-                    print(f"Keine Daten für {symbol} erhalten.")
+                try:
+                    ticker = exchange.fetch_ticker(symbol)
+                    current_price = ticker['last']
+                    print(f"{symbol} Live-Preis: {current_price} USDT")
+                    
+                    # --- HIER KOMMT DEINE STRATEGIE HIN ---
+                    # Beispiel für eine Kauf-Order (erst aktivieren, wenn du bereit bist!):
+                    # if usdt_free > 10 and dein_kauf_signal:
+                    #     order = exchange.create_market_buy_order(symbol, 10) # Kauft für 10 USDT
+                    #     print(order)
+                    
+                except Exception as ex:
+                    print(f"Fehler bei Preisabfrage für {symbol}: {ex}")
                 
-                time.sleep(2)
+                time.sleep(3)
                 
         except Exception as e:
-            print(f"Fehler im Hauptloop: {e}")
+            print(f"Fehler im Live-Hauptloop: {e}")
             
         time.sleep(CHECK_INTERVAL)
 
 if __name__ == "__main__":
-    # Webserver im Hintergrund starten
+    # Webserver im Hintergrund starten (für Render Port-Binding)
     web_thread = threading.Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
-    # Trading-Bot starten
+    # Live-Bot starten
     bot_loop()
+
 
 
 
