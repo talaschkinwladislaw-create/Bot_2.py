@@ -21,10 +21,10 @@ def run_web():
 # ==========================================
 # ECHTGELD-KONFIGURATION (LIVE MODUS)
 # ==========================================
-CHECK_INTERVAL = 300  # Alle 5 Minuten prüfen (beim Live-Handel defensiver wählen)
+CHECK_INTERVAL = 300  # Alle 5 Minuten prüfen
 SYMBOLS = ["BTC/USDT", "ETH/USDT"]
 
-# API-Schlüssel sicher aus den Render Environment Variables laden
+# Der Code holt sich deine Schlüssel sicher aus den Render-Einstellungen
 exchange = ccxt.kucoin({
     'enableRateLimit': True,
     'apiKey': os.environ.get('KUCOIN_API_KEY'),
@@ -32,37 +32,33 @@ exchange = ccxt.kucoin({
     'password': os.environ.get('KUCOIN_PASSWORD')
 })
 
-# EXPLICIT DEN LIVE-MODUS AKTIVIEREN (Keine Sandbox!)
+# LIVE-MODUS AKTIVIEREN
 exchange.set_sandbox_mode(False)
-print("--- 🚨 ACHTUNG: KUCOIN BOT IM ECHTGELD (LIVE) MODUS AKTIVIERT 🚨 ---")
+print("--- 🚨 KUCOIN BOT IM ECHTGELD (LIVE) MODUS AKTIVIERT 🚨 ---")
 
 def bot_loop():
     while True:
         try:
             print(f"\n--- Live-Handels-Scan gestartet um {datetime.now()} ---")
             
-            # 1. Kontostand abrufen (prüft, ob die API-Verbindung steht)
+            # 1. Kontostand abrufen
             try:
                 balance = exchange.fetch_balance()
                 usdt_free = balance['free'].get('USDT', 0)
                 print(f"Verfügbares USDT-Guthaben: {usdt_free} USDT")
             except Exception as e:
-                print(f"Fehler beim Abrufen des Kontostands (Schlüssel prüfen!): {e}")
+                print(f"Fehler beim Abrufen des Kontostands (Schlüssel in Render prüfen!): {e}")
                 time.sleep(30)
                 continue
 
-            # 2. Märkte und Preise prüfen & Handelslogik anwenden
+            # 2. Märkte und Preise prüfen
             for symbol in SYMBOLS:
                 try:
                     ticker = exchange.fetch_ticker(symbol)
                     current_price = ticker['last']
                     print(f"{symbol} Live-Preis: {current_price} USDT")
                     
-                    # --- HIER KOMMT DEINE STRATEGIE HIN ---
-                    # Beispiel für eine Kauf-Order (erst aktivieren, wenn du bereit bist!):
-                    # if usdt_free > 10 and dein_kauf_signal:
-                    #     order = exchange.create_market_buy_order(symbol, 10) # Kauft für 10 USDT
-                    #     print(order)
+                    # --- HIER DEINE KAUF-/VERKAUFSLOGIK EINFÜGEN ---
                     
                 except Exception as ex:
                     print(f"Fehler bei Preisabfrage für {symbol}: {ex}")
@@ -75,13 +71,12 @@ def bot_loop():
         time.sleep(CHECK_INTERVAL)
 
 if __name__ == "__main__":
-    # Webserver im Hintergrund starten (für Render Port-Binding)
     web_thread = threading.Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
-    # Live-Bot starten
     bot_loop()
+
 
 
 
