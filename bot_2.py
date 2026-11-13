@@ -1,8 +1,8 @@
-import ccxt
 import time
 import os
 import threading
 from datetime import datetime
+import requests
 from flask import Flask
 
 # ==========================================
@@ -22,44 +22,32 @@ def run_web():
 # KONFIGURATION DES TRADING-BOTS
 # ==========================================
 CHECK_INTERVAL = 60  # Zeitabstand in Sekunden
-SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+SYMBOLS = ["BTC-USDT", "ETH-USDT", "SOL-USDT"]  # KuCoin Public API nutzt Bindestrich
 
-# Sauber initialisiert ohne fehlerhafte Platzhalter-Schlüssel
-exchange = ccxt.kucoin({
-    'enableRateLimit': True,
-    'apiKey': '',
-    'secret': '',
-    'password': ''
-})
-exchange.set_sandbox_mode(True)
-print("--- KUCOIN BOT GESTARTET (SANDBOX-MODUS) ---")
+def get_kucoin_price(symbol):
+    try:
+        url = f"https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={symbol}"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        
+        if data.get("code") == "200000" and data.get("data"):
+            price = float(data["data"]["price"])
+            return price
+    except Exception as e:
+        print(f"Fehler beim Abrufen von {symbol}: {e}")
+    return None
 
 def bot_loop():
     while True:
         try:
             print(f"\n--- Bot-Scan gestartet um {datetime.now()} ---")
             
-            try:
-                exchange.load_markets()
-            except Exception as e:
-                print(f"Märkte konnten nicht geladen werden: {e}")
-                time.sleep(10)
-                continue
-
             for symbol in SYMBOLS:
-                try:
-                    ohlcv = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=50)
-                    
-                    if not ohlcv or not isinstance(ohlcv, list) or len(ohlcv) < 10:
-                        print(f"Keine gültigen Daten für {symbol} erhalten.")
-                        continue
-                    
-                    closes = [x[4] for x in ohlcv]
-                    current_price = closes[-1]
-                    print(f"{symbol} Aktueller Preis: {current_price}")
-                    
-                except Exception as ex:
-                    print(f"Fehler bei Abruf von {symbol}: {ex}")
+                price = get_kucoin_price(symbol)
+                if price:
+                    print(f"{symbol} Aktueller Preis: {price} USDT")
+                else:
+                    print(f"Keine Daten für {symbol} erhalten.")
                 
                 time.sleep(2)
                 
@@ -76,5 +64,6 @@ if __name__ == "__main__":
 
     # Trading-Bot starten
     bot_loop()
+
 
 
