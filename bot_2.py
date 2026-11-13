@@ -1,6 +1,5 @@
 import ccxt
 import time
-import sys
 import os
 import threading
 from datetime import datetime
@@ -20,46 +19,38 @@ def run_web():
     app.run(host='0.0.0.0', port=port)
 
 # ==========================================
-# KONFIGURATION DEINES TRADING-BOTS
+# KONFIGURATION DES TRADING-BOTS
 # ==========================================
-TEST_MODE = True  # True = Test-Modus (Sandbox), False = Echtgeld
 CHECK_INTERVAL = 60  # Zeitabstand in Sekunden
-
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
 
-# KuCoin API-Schlüssel
+# Sauber initialisiert ohne fehlerhafte Platzhalter-Schlüssel
 exchange = ccxt.kucoin({
     'enableRateLimit': True,
-    'apiKey': '6af7...',
-    'secret': 'c0b5...',
-    'password': 'Wladislaw203312'
+    'apiKey': '',
+    'secret': '',
+    'password': ''
 })
-
-if TEST_MODE:
-    exchange.set_sandbox_mode(True)
-    print("--- KUCOIN BOT GESTARTET IM SANDBOX (TEST) MODUS ---")
-else:
-    print("--- ACHTUNG: KUCOIN BOT IM LIVE-HANDEL MODUS ---")
+exchange.set_sandbox_mode(True)
+print("--- KUCOIN BOT GESTARTET (SANDBOX-MODUS) ---")
 
 def bot_loop():
     while True:
         try:
             print(f"\n--- Bot-Scan gestartet um {datetime.now()} ---")
             
-            # Märkte sicher laden mit Fehlerbehandlung
             try:
                 exchange.load_markets()
             except Exception as e:
-                print(f"Konnte Märkte nicht laden: {e}")
+                print(f"Märkte konnten nicht geladen werden: {e}")
                 time.sleep(10)
                 continue
 
             for symbol in SYMBOLS:
                 try:
-                    # Kursdaten sicher abrufen und auf NoneType prüfen
                     ohlcv = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=50)
                     
-                    if ohlcv is None or not isinstance(ohlcv, list) or len(ohlcv) < 30:
+                    if not ohlcv or not isinstance(ohlcv, list) or len(ohlcv) < 10:
                         print(f"Keine gültigen Daten für {symbol} erhalten.")
                         continue
                     
@@ -78,11 +69,12 @@ def bot_loop():
         time.sleep(CHECK_INTERVAL)
 
 if __name__ == "__main__":
-    # Webserver im Hintergrund starten (für Render Port-Binding)
+    # Webserver im Hintergrund starten
     web_thread = threading.Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
     # Trading-Bot starten
     bot_loop()
+
 
