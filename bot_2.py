@@ -1,6 +1,7 @@
 import ccxt
 import time
 import sys
+import os
 import threading
 from datetime import datetime
 from flask import Flask
@@ -15,21 +16,21 @@ def home():
     return "KuCoin Trading Bot is running 24/7!"
 
 def run_web():
-    # Render weist automatisch einen Port über die Umgebungsvariable 'PORT' zu
-    app.run(host='0.0.0.0', port=10000)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
 
 # ==========================================
 # KONFIGURATION DEINES TRADING-BOTS
 # ==========================================
 TEST_MODE = True  # True = Test-Modus (Sandbox), False = Echtgeld
-CHECK_INTERVAL = 60  # Zeitabstand in Sekunden zwischen den Scans
+CHECK_INTERVAL = 60  # Zeitabstand in Sekunden
 
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
 
 # KuCoin API-Schlüssel
 exchange = ccxt.kucoin({
     'enableRateLimit': True,
-    'apiKey': '6af7...',          # Deine echten KuCoin Keys
+    'apiKey': '6af7...',
     'secret': 'c0b5...',
     'password': 'Wladislaw203312'
 })
@@ -44,21 +45,32 @@ def bot_loop():
     while True:
         try:
             print(f"\n--- Bot-Scan gestartet um {datetime.now()} ---")
+            
+            # Märkte sicher laden mit Fehlerbehandlung
+            try:
+                exchange.load_markets()
+            except Exception as e:
+                print(f"Konnte Märkte nicht laden: {e}")
+                time.sleep(10)
+                continue
+
             for symbol in SYMBOLS:
                 try:
-                    # Kursdaten holen
+                    # Kursdaten sicher abrufen und auf NoneType prüfen
                     ohlcv = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=50)
-                    if not ohlcv or len(ohlcv) < 30:
+                    
+                    if ohlcv is None or not isinstance(ohlcv, list) or len(ohlcv) < 30:
+                        print(f"Keine gültigen Daten für {symbol} erhalten.")
                         continue
                     
                     closes = [x[4] for x in ohlcv]
                     current_price = closes[-1]
-                    print(symbol, "Aktueller Preis:", current_price)
+                    print(f"{symbol} Aktueller Preis: {current_price}")
                     
                 except Exception as ex:
-                    print(f"Fehler bei {symbol}: {ex}")
+                    print(f"Fehler bei Abruf von {symbol}: {ex}")
                 
-                time.sleep(0.5)
+                time.sleep(2)
                 
         except Exception as e:
             print(f"Fehler im Hauptloop: {e}")
@@ -66,10 +78,11 @@ def bot_loop():
         time.sleep(CHECK_INTERVAL)
 
 if __name__ == "__main__":
-    # Starte den Webserver in einem separaten Hintergrund-Thread, damit Render glücklich ist
+    # Webserver im Hintergrund starten (für Render Port-Binding)
     web_thread = threading.Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
-    # Starte den eigentlichen Trading-Bot
+    # Trading-Bot starten
     bot_loop()
+
